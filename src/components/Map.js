@@ -1,6 +1,7 @@
 import React from "react";
 import ReactMapGL, { Marker } from "react-map-gl";
-import MarkerIcon from "../static/imgs/marker.png";
+import WifiIcon from "../static/imgs/wifi.svg";
+import fetchHotSpots from "../api/fetchHotSpots";
 
 class Map extends React.Component {
   // Default state when a user vists a site
@@ -8,36 +9,47 @@ class Map extends React.Component {
     viewport: {
       width: "100vw",
       height: "100vh",
-      zoom: 9,
-      latitude: 42.430472,
-      longitude: -123.334102
+      zoom: 12,
+      latitude: 40.7250863,
+      longitude: -73.9773608
     },
     userLocation: {
-        lat: 42.430472,
-        long: -123.334102}
+      lat: 40.7250863,
+      long: -73.9773608
+    },
+    wifiHotSpots: []
   };
 
-  setUserLocation = () => {
-    //   Allows us to get the current user's location
-    navigator.geolocation.getCurrentPosition(position => {
-      // Define user location to overide current app state
-      let newUserLocation = {
-        lat: position.coords.latitude,
-        long: position.coords.longitude
-      };
-      //   Define the current location of user
-      let newViewPort = {
-        ...this.state,
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        zoom: 10
-      };
+  //   Immediately the component mounts, make an API call to fetch the hotspots
+  componentDidMount() {
+    this.getAllHotSpots();
+  }
 
-      //   Update our component state
+  //   Define method to fetch all wifi hotspots and filter with the ones that are free
+  getAllHotSpots = () => {
+    fetchHotSpots().then(res => {
       this.setState({
-        viewport: newViewPort,
-        userLocation: newUserLocation
+        wifiHotSpots: res.data.filter(spot => {
+          return spot.type === "Free";
+        })
       });
+    });
+  };
+
+  //   After fetching all hotspots render marker to identify them
+  renderWifiMarkers = () => {
+    const { wifiHotSpots } = this.state;
+
+    return wifiHotSpots.map(spot => {
+      return (
+        <Marker
+          key={spot.objectid}
+          longitude={parseFloat(spot.longitude)}
+          latitude={parseFloat(spot.latitude)}
+        >
+          <img src={WifiIcon} alt="marker" style={{ width: "15px" }} />
+        </Marker>
+      );
     });
   };
 
@@ -45,12 +57,8 @@ class Map extends React.Component {
   // mapboxApiAccessToken grants us access to interact with mapbox maps
 
   render() {
-    const {
-      userLocation: { long, lat }
-    } = this.state;
     return (
       <div className="map-holder">
-        <button onClick={this.setUserLocation}>find me</button>
         <section className="map">
           <ReactMapGL
             onViewportChange={viewport =>
@@ -62,14 +70,8 @@ class Map extends React.Component {
             mapStyle="mapbox://styles/mapbox/outdoors-v11"
             mapboxApiAccessToken={process.env.REACT_APP_MAPBOX_TOKEN}
           >
-            {/* Couple of error handling such that if we lack the data rather than a red screen present a readable error */}
-            {Object.keys(this.state.userLocation).length !== 0 ? (
-              <Marker longitude={long} latitude={lat}>
-                <img src={MarkerIcon} alt="marker"/>
-              </Marker>
-            ) : (
-              <div>Empty</div>
-            )}
+            {/* Merkers rendered here */}
+            {this.renderWifiMarkers()}
           </ReactMapGL>
         </section>
       </div>
